@@ -5,6 +5,7 @@ from pydantic import BaseModel
 import joblib
 from tree_sitter import Language, Parser
 import os
+from code_analyzer import CodeAnalyzer
 
 # --- Tree-sitter Language Setup ---
 # The pre-compiled library for Go and JavaScript grammars.
@@ -34,17 +35,17 @@ class Code(BaseModel):
     code: str
 
 # --- Helper Functions ---
-def get_parser(code: str) -> Parser | None:
-    """Detects the language and returns the appropriate Tree-sitter parser."""
+def get_parser(code: str) -> tuple[Parser, str]:
+    """Detects the language and returns the appropriate Tree-sitter parser and language identifier."""
     parser = Parser()
     # Simple heuristic to guess the language.
-    # A more robust solution might involve more advanced detection.
     if 'func main' in code or 'package main' in code or 'fmt.' in code:
         parser.set_language(GO_LANGUAGE)
+        return parser, 'go'
     else:
         # Default to JavaScript if Go is not detected
         parser.set_language(JS_LANGUAGE)
-    return parser
+        return parser, 'javascript'
 
 async def walk_tree(cursor, websocket: WebSocket):
     """Recursively walks the syntax tree and sends node info over the WebSocket."""
@@ -83,18 +84,42 @@ async def classify_code(code: Code):
 
 @app.websocket("/ws/visualizer")
 async def websocket_visualizer(websocket: WebSocket):
-    """Handles real-time code parsing and streams syntax tree nodes."""
+    """Handles real-time code parsing and streams syntax tree nodes and error information."""
     await websocket.accept()
-    print("INFO:     connection open")
+    print("INFO:     WebSocket connection opened")
     try:
         data = await websocket.receive_json()
         code = data.get('code', '')
+        print(f"INFO:     Received code to analyze:\n{code[:200]}...")
         
-        parser = get_parser(code)
+        parser, language_type = get_parser(code)
         if not parser:
             await websocket.send_json({"error": "Language not supported or detected"})
             return
             
+        # Initialize code analyzer
+        analyzer = CodeAnalyzer()
+        
+        # Analyze code for issues
+        issues = analyzer.analyze_code(code, language_type)
+        
+        # Send any detected issues first
+        for issue in issues:
+            musical_params = analyzer.get_musical_mapping(issue)
+            await websocket.send_json({
+                "isError": True,
+                "type": issue["type"],
+                "message": issue["message"],
+                "line": issue["line"],
+                "severity": issue["severity"],
+                "note": musical_params["note"],
+                "duration": musical_params["duration"],
+                "velocity": musical_params["velocity"],
+                "timbre": musical_params["timbre"]
+            })
+            await asyncio.sleep(0.005)
+        
+        # Proceed with syntax tree analysis
         tree = parser.parse(bytes(code, "utf8"))
         cursor = tree.walk()
         await walk_tree(cursor, websocket)
