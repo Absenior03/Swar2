@@ -1,12 +1,30 @@
 /* --- General Layout & Theme --- */
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600&family=Source+Code+Pro:wght@400;500&family=Orbitron:wght@400;700&family=JetBrains+Mono:wght@400;500&family=Rajdhani:wght@400;600;700&family=Quicksand:wght@400;600;700&display=swap');
+
 :root {
-  font-family: 'Inter', system-ui, Avenir, Helvetica, Arial, sans-serif;
+  /* Default theme colors - will be overridden by ThemeProvider */
+  --color-primary: #646cff;
+  --color-secondary: #535bf2;
+  --color-background: #1a1a1a;
+  --color-surface: #242424;
+  --color-text: rgba(255, 255, 255, 0.87);
+  --color-text-secondary: #888;
+  --color-accent: #9932cc;
+  --color-border: #333;
+  --color-highlight: rgba(94, 103, 255, 0.25);
+  --color-code-background: #161616;
+  
+  /* Default fonts */
+  --font-primary: 'Inter', system-ui, Avenir, Helvetica, Arial, sans-serif;
+  --font-code: 'Fira Code', 'Courier New', monospace;
+
+  font-family: var(--font-primary);
   line-height: 1.5;
   font-weight: 400;
 
   color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #1a1a1a;
+  color: var(--color-text);
+  background-color: var(--color-background);
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -39,17 +57,27 @@ body {
 
 header {
   padding: 1rem;
-  border-bottom: 1px solid #333;
+  border-bottom: 1px solid var(--color-border);
+  background: linear-gradient(135deg, var(--color-surface), var(--color-background));
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.header-content {
+  flex: 1;
 }
 
 header h1 {
   margin: 0;
   font-size: 1.8rem;
+  color: var(--color-primary);
+  text-shadow: 0 0 10px var(--color-primary);
 }
 
 header p {
   margin: 0;
-  color: #888;
+  color: var(--color-text-secondary);
 }
 
 main {
@@ -63,8 +91,8 @@ main {
   display: flex;
   flex-direction: column;
   padding: 1rem;
-  border-right: 1px solid #333;
-  background-color: #242424;
+  border-right: 1px solid var(--color-border);
+  background-color: var(--color-surface);
 }
 
 .visualizer-container {
@@ -74,47 +102,56 @@ main {
 
 footer {
   padding: 0.5rem;
-  border-top: 1px solid #333;
+  border-top: 1px solid var(--color-border);
   font-size: 0.8rem;
-  color: #888;
-  background-color: #242424;
+  color: var(--color-text-secondary);
+  background-color: var(--color-surface);
 }
 
 button {
   margin-top: 1rem;
   padding: 0.8rem 1.2rem;
   border-radius: 8px;
-  border: 1px solid transparent;
+  border: 1px solid var(--color-primary);
   font-size: 1em;
   font-weight: 500;
   font-family: inherit;
-  background-color: #1a1a1a;
+  background-color: var(--color-background);
+  color: var(--color-primary);
   cursor: pointer;
-  transition: border-color 0.25s, background-color 0.25s;
+  transition: all 0.25s ease;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
 }
 
 button:hover {
-  border-color: #646cff;
-  background-color: #333;
+  border-color: var(--color-secondary);
+  background-color: var(--color-primary);
+  color: var(--color-background);
+  box-shadow: 0 0 20px var(--color-primary);
+  transform: translateY(-2px);
 }
 
 button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
 }
 
 /* --- NEW: Code Viewer & Pointer Styles --- */
 .code-container {
   flex-grow: 1;
-  background-color: #161616;
+  background-color: var(--color-code-background);
   text-align: left;
   padding: 1rem;
-  font-family: 'Fira Code', 'Courier New', monospace;
+  font-family: var(--font-code);
   font-size: 0.9em;
   overflow-y: auto;
   border-radius: 8px;
   margin: 0;
-  white-space: pre; /* Use pre for proper formatting */
+  white-space: pre;
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
 }
 
 .code-line {
@@ -123,14 +160,190 @@ button:disabled {
 }
 
 .line-number {
-  min-width: 2.5em; /* ensures alignment */
+  min-width: 2.5em;
   padding-right: 1em;
-  color: #555;
+  color: var(--color-text-secondary);
   text-align: right;
-  user-select: none; /* prevent selecting line numbers */
+  user-select: none;
 }
 
 .highlighted-line {
-  background-color: rgba(94, 103, 255, 0.25);
+  background-color: var(--color-highlight);
   border-radius: 2px;
+  box-shadow: 0 0 10px var(--color-highlight);
+}
+
+/* Theme Selector Styles */
+.theme-selector {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.theme-selector label {
+  color: var(--color-text-secondary);
+  font-weight: 500;
+}
+
+.theme-select {
+  padding: 0.4rem 0.8rem;
+  border-radius: 6px;
+  border: 1px solid var(--color-border);
+  background-color: var(--color-surface);
+  color: var(--color-text);
+  font-family: inherit;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.theme-select:hover {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 5px var(--color-primary);
+}
+
+.theme-select:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 10px var(--color-primary);
+}
+
+/* Theme-specific animations */
+.App[data-theme="harryPotter"] {
+  background: radial-gradient(ellipse at center, #0f0f23 0%, #000 100%);
+}
+
+.App[data-theme="harryPotter"] header h1 {
+  animation: magical-glow 3s ease-in-out infinite alternate;
+}
+
+.App[data-theme="strangerThings"] {
+  background: 
+    radial-gradient(ellipse at 20% 50%, rgba(255, 0, 64, 0.1) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 20%, rgba(0, 255, 65, 0.1) 0%, transparent 50%),
+    #0a0a0a;
+}
+
+.App[data-theme="strangerThings"] header h1 {
+  animation: neon-flicker 2s linear infinite;
+  text-shadow: 
+    0 0 5px var(--color-primary),
+    0 0 10px var(--color-primary),
+    0 0 15px var(--color-primary),
+    0 0 20px var(--color-primary);
+}
+
+.App[data-theme="marvel"] {
+  background: 
+    radial-gradient(ellipse at 30% 40%, rgba(226, 54, 54, 0.15) 0%, transparent 50%),
+    radial-gradient(ellipse at 70% 60%, rgba(0, 212, 255, 0.1) 0%, transparent 50%),
+    radial-gradient(ellipse at 50% 20%, rgba(255, 215, 0, 0.08) 0%, transparent 50%),
+    #0c1821;
+}
+
+.App[data-theme="marvel"] header h1 {
+  animation: heroic-pulse 3s ease-in-out infinite;
+  text-shadow: 
+    0 0 10px var(--color-primary),
+    0 0 20px var(--color-secondary),
+    0 0 30px var(--color-accent);
+  font-weight: 700;
+}
+
+.App[data-theme="disney"] {
+  background: 
+    radial-gradient(ellipse at 20% 80%, rgba(255, 107, 157, 0.15) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 20%, rgba(79, 195, 247, 0.12) 0%, transparent 50%),
+    radial-gradient(ellipse at 40% 40%, rgba(255, 213, 79, 0.08) 0%, transparent 50%),
+    #1a0d2e;
+}
+
+.App[data-theme="disney"] header h1 {
+  animation: magical-sparkle 4s ease-in-out infinite;
+  text-shadow: 
+    0 0 10px var(--color-primary),
+    0 0 20px var(--color-secondary),
+    0 0 30px var(--color-accent);
+  font-weight: 600;
+}
+
+@keyframes magical-glow {
+  0% { text-shadow: 0 0 10px var(--color-primary); }
+  100% { text-shadow: 0 0 20px var(--color-primary), 0 0 30px var(--color-secondary); }
+}
+
+@keyframes neon-flicker {
+  0%, 19%, 21%, 23%, 25%, 54%, 56%, 100% {
+    text-shadow: 
+      0 0 5px var(--color-primary),
+      0 0 10px var(--color-primary),
+      0 0 15px var(--color-primary),
+      0 0 20px var(--color-primary);
+  }
+  20%, 24%, 55% {
+    text-shadow: none;
+  }
+}
+
+@keyframes heroic-pulse {
+  0% { 
+    text-shadow: 
+      0 0 10px var(--color-primary),
+      0 0 20px var(--color-secondary),
+      0 0 30px var(--color-accent);
+    transform: scale(1);
+  }
+  50% { 
+    text-shadow: 
+      0 0 15px var(--color-primary),
+      0 0 30px var(--color-secondary),
+      0 0 45px var(--color-accent);
+    transform: scale(1.02);
+  }
+  100% { 
+    text-shadow: 
+      0 0 10px var(--color-primary),
+      0 0 20px var(--color-secondary),
+      0 0 30px var(--color-accent);
+    transform: scale(1);
+  }
+}
+
+@keyframes magical-sparkle {
+  0% { 
+    text-shadow: 
+      0 0 10px var(--color-primary),
+      0 0 20px var(--color-secondary),
+      0 0 30px var(--color-accent);
+    transform: scale(1) rotate(0deg);
+  }
+  25% { 
+    text-shadow: 
+      0 0 15px var(--color-accent),
+      0 0 25px var(--color-primary),
+      0 0 35px var(--color-secondary);
+    transform: scale(1.01) rotate(0.5deg);
+  }
+  50% { 
+    text-shadow: 
+      0 0 20px var(--color-secondary),
+      0 0 30px var(--color-accent),
+      0 0 40px var(--color-primary);
+    transform: scale(1.02) rotate(0deg);
+  }
+  75% { 
+    text-shadow: 
+      0 0 15px var(--color-primary),
+      0 0 25px var(--color-accent),
+      0 0 35px var(--color-secondary);
+    transform: scale(1.01) rotate(-0.5deg);
+  }
+  100% { 
+    text-shadow: 
+      0 0 10px var(--color-primary),
+      0 0 20px var(--color-secondary),
+      0 0 30px var(--color-accent);
+    transform: scale(1) rotate(0deg);
+  }
 }

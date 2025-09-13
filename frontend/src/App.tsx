@@ -3,6 +3,9 @@ import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Stars, Text } from '@react-three/drei';
 import * as Tone from 'tone';
 import * as THREE from 'three';
+import { useTheme } from './ThemeContext';
+import ThemeSelector from './ThemeSelector';
+import { createThemedSynth } from './soundEffects';
 
 // --- API and WebSocket Service Functions ---
 async function classifyCode(code: string): Promise<{ genre: string; confidence: number }> {
@@ -15,20 +18,31 @@ async function classifyCode(code: string): Promise<{ genre: string; confidence: 
     return response.json();
 }
 
-// --- Musical Palettes ---
-const musicPalettes: { [key: string]: { scale: string[]; synth: any; } } = {
-    'Go-Concurrent': { scale: ['C3', 'D#3', 'G3', 'G#3', 'C4', 'D#4', 'G4', 'G#4'], synth: Tone.FMSynth },
-    'Go-Systems':    { scale: ['A2', 'B2', 'C3', 'E3', 'A3', 'B3', 'C4', 'E4'], synth: Tone.AMSynth },
-    'JS-Async':      { scale: ['G4', 'A4', 'C5', 'D5', 'F5', 'G5', 'A5', 'C6'], synth: Tone.PluckSynth },
-    'JS-DOM':        { scale: ['C4', 'E4', 'G4', 'A4', 'B4', 'C5', 'E5', 'G5'], synth: Tone.PolySynth },
-    'JS-Functional': { scale: ['D3', 'F3', 'A3', 'C4', 'E4', 'F4', 'A4', 'C5'], synth: Tone.MembraneSynth },
-    'Algorithmic-Logic': { scale: ['C4', 'D4', 'E4', 'F#4', 'G#4', 'A#4', 'C5', 'D5'], synth: Tone.PolySynth },
-    'default':       { scale: ['C4', 'D4', 'E4', 'F4', 'G4', 'A4', 'B4', 'C5'], synth: Tone.PolySynth }
+// Musical synth types mapping
+const synthTypes: { [key: string]: any } = {
+    'Go-Concurrent': Tone.FMSynth,
+    'Go-Systems': Tone.AMSynth,
+    'JS-Async': Tone.PluckSynth,
+    'JS-DOM': Tone.PolySynth,
+    'JS-Functional': Tone.MembraneSynth,
+    'Algorithmic-Logic': Tone.PolySynth,
+    'default': Tone.PolySynth
 };
 
 // --- 3D Components ---
-interface NodeVisualProps { id: string; type: string; position: [number, number, number]; duration: number; }
-const NodeVisual: React.FC<NodeVisualProps> = ({ id, type, position, duration }) => {
+interface NodeVisualProps { 
+    id: string; 
+    type: string; 
+    position: [number, number, number]; 
+    duration: number; 
+    nodeColors: {
+        function: string;
+        loop: string;
+        conditional: string;
+        default: string;
+    };
+}
+const NodeVisual: React.FC<NodeVisualProps> = ({ id, type, position, duration, nodeColors }) => {
     const meshRef = useRef<THREE.Mesh>(null!);
     const initialLifetime = useRef(duration * 1.5 + 0.5);
 
@@ -49,7 +63,11 @@ const NodeVisual: React.FC<NodeVisualProps> = ({ id, type, position, duration })
     });
 
     const geometry = type.includes('function') ? <sphereGeometry args={[0.6, 32, 32]} /> : type.includes('for') ? <torusGeometry args={[0.5, 0.15, 16, 100]} /> : type.includes('if') ? <boxGeometry args={[0.8, 0.8, 0.8]} /> : <icosahedronGeometry args={[0.5, 0]} />;
-    const color = type.includes('function') ? '#ff69b4' : type.includes('for') ? '#00ffff' : type.includes('if') ? '#ffff00' : '#9932cc';
+    
+    const color = type.includes('function') ? nodeColors.function : 
+                  type.includes('for') || type.includes('while') ? nodeColors.loop : 
+                  type.includes('if') ? nodeColors.conditional : 
+                  nodeColors.default;
 
     // **CRITICAL FIX**: The <primitive> tag was causing the renderer to crash.
     // This now correctly renders the geometry and material as children of the mesh.
@@ -91,8 +109,17 @@ const CodeViewer = ({ code, highlightedLines }: { code: string; highlightedLines
     );
 };
 
+// Helper function to get theme key
+const getThemeKey = (themeName: string): string => {
+    return themeName === 'Harry Potter' ? 'harryPotter' : 
+           themeName === 'Stranger Things' ? 'strangerThings' :
+           themeName === 'Marvel' ? 'marvel' :
+           themeName === 'Disney' ? 'disney' : 'default';
+};
+
 // --- Main App Component ---
 export default function App() {
+    const { theme } = useTheme();
     const [code, setCode] = useState("function factorial(n) {\n  if (n === 0) {\n    return 1;\n  } else {\n    let result = 1;\n    for (let i = 1; i <= n; i++) {\n      result *= i;\n    }\n    return result;\n  }\n}");
     const [isPlaying, setIsPlaying] = useState(false);
     const [status, setStatus] = useState('Ready. Paste your code and press Play.');
@@ -104,6 +131,18 @@ export default function App() {
     const ws = useRef<WebSocket | null>(null);
     const synth = useRef<any>(null);
     const sequence = useRef<Tone.Sequence | null>(null);
+    const currentThemeRef = useRef<string>(getThemeKey(theme.name));
+
+    // Function to create synth with current theme
+    const createCurrentSynth = useCallback((paletteKey: string) => {
+        const themeKey = getThemeKey(theme.name);
+        currentThemeRef.current = themeKey;
+        
+        if (synth.current) synth.current.dispose();
+        synth.current = createThemedSynth(themeKey, paletteKey);
+        
+        return synth.current;
+    }, [theme.name]);
 
     const stopMusic = useCallback(() => {
         Tone.Transport.stop();
@@ -128,12 +167,11 @@ export default function App() {
             setStatus('1/3: Classifying code...');
             
             const classification = await classifyCode(code);
-            const paletteKey = classification.genre in musicPalettes ? classification.genre : 'default';
+            const paletteKey = classification.genre in theme.musicPalettes ? classification.genre : 'default';
             setActivePalette(paletteKey);
-            const palette = musicPalettes[paletteKey];
+            const palette = theme.musicPalettes[paletteKey];
             
-            if (synth.current) synth.current.dispose();
-            synth.current = new palette.synth({ volume: -6, oscillator: { type: 'sine8' } }).toDestination();
+            createCurrentSynth(paletteKey);
             
             setStatus('2/3: Analyzing code structure...');
             const musicalEvents: { note: string | string[], duration: string, type: string, startLine: number, endLine: number }[] = [];
@@ -197,6 +235,7 @@ export default function App() {
                             type: event.type,
                             position: [(Math.random() - 0.5) * 10, (Math.random() - 0.5) * 10, (Math.random() - 0.5) * 10],
                             duration: Tone.Time(event.duration).toSeconds(),
+                            nodeColors: theme.visualEffects.nodeColors,
                         };
                         setVisualNodes(prev => [...prev.slice(-30), newNode]);
                     }, time);
@@ -218,18 +257,36 @@ export default function App() {
             setStatus('Error connecting to backend.');
             stopMusic();
         }
-    }, [code, isPlaying, stopMusic]);
+    }, [code, isPlaying, stopMusic, theme.musicPalettes, createCurrentSynth]);
+
+    // Update synth when theme changes (only if we already have a synth)
+    useEffect(() => {
+        const themeKey = getThemeKey(theme.name);
+        
+        // Only update if theme actually changed and we already have a synth created
+        if (currentThemeRef.current !== themeKey && synth.current && activePalette) {
+            createCurrentSynth(activePalette);
+            console.log(`Synth updated to ${themeKey} theme with ${activePalette} palette`);
+        }
+    }, [theme.name, activePalette, createCurrentSynth]);
 
     useEffect(() => {
         return () => { 
            stopMusic();
            ws.current?.close();
+           if (synth.current) synth.current.dispose();
         }
     }, [stopMusic]);
 
     return (
-        <div className="App">
-            <header><h1>Project Swar</h1><p>Real-Time Code Sonification & Visualization</p></header>
+        <div className="App" data-theme={getThemeKey(theme.name)}>
+            <header>
+                <div className="header-content">
+                    <h1>Project Swar</h1>
+                    <p>Real-Time Code Sonification & Visualization</p>
+                </div>
+                <ThemeSelector />
+            </header>
             <main>
                 <div className="editor-container">
                     {isPlaying ? (
@@ -249,10 +306,26 @@ export default function App() {
                 <div className="visualizer-container">
                     <Canvas camera={{ position: [0, 0, 15], fov: 75 }}>
                         <ambientLight intensity={0.2} /><pointLight position={[10, 10, 10]} intensity={1.5} />
-                        <Stars radius={100} depth={50} count={5000} factor={4} saturation={0} fade speed={1} />
+                        <Stars 
+                            radius={100} 
+                            depth={50} 
+                            count={5000} 
+                            factor={4} 
+                            saturation={theme.visualEffects.starSaturation} 
+                            fade 
+                            speed={1} 
+                        />
                         {visualNodes.map(node => <NodeVisual key={node.id} {...node} />)}
                         {!isPlaying && (
-                            <Text position={[0, 0, 0]} fontSize={0.8} color="#555" anchorX="center" anchorY="middle" outlineColor="#000" outlineWidth={0.05}>
+                            <Text 
+                                position={[0, 0, 0]} 
+                                fontSize={0.8} 
+                                color={theme.colors.textSecondary} 
+                                anchorX="center" 
+                                anchorY="middle" 
+                                outlineColor={theme.colors.background} 
+                                outlineWidth={0.05}
+                            >
                                 Press Play to Visualize
                             </Text>
                         )}
