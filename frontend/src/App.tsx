@@ -307,7 +307,8 @@ export default function App() {
                     startLine: data.startLine,
                     endLine: data.endLine
                 });
-            };            if (ws.current) ws.current.onclose = () => {
+            };
+            if (ws.current) ws.current.onclose = () => {
                 if (musicalEvents.length === 0) {
                     setStatus('No parsable musical elements found.');
                     setIsPlaying(false);
@@ -429,7 +430,7 @@ export default function App() {
 
     return (
         <div className="App">
-            <header><h1>Project Swar</h1><p>Real-Time Code Sonification & Visualization</p></header>
+            <header><h1>Swarr</h1><p>Real-Time Code Sonification & Visualization</p></header>
             <main>
                 <div className="editor-container">
                     {isPlaying ? (
@@ -464,3 +465,4 @@ export default function App() {
         </div>
     );
 }
+
