@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Swar Enhanced Error Visualization Demo</title>
+    <style>
+        body {
+            font-family: 'Courier New', monospace;
+            background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+            color: #00ff00;
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        h1 {
+            text-align: center;
+            color: #00ffff;
+            text-shadow: 0 0 20px #00ffff;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        .subtitle {
+            text-align: center;
+            color: #888;
+            margin-bottom: 30px;
+        }
+        .demo-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        .demo-section {
+            padding: 20px;
+            border: 1px solid #333;
+            border-radius: 12px;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(10px);
+        }
+        .full-width {
+            grid-column: 1 / -1;
+        }
+        .feature-title {
+            color: #00ffff;
+            font-size: 1.2em;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .feature-icon {
+            font-size: 1.5em;
+        }
+        .code-sample {
+            background: #111;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+            overflow-x: auto;
+            border-left: 4px solid #333;
+        }
+        .syntax-error { border-left-color: #ff4757; background: rgba(255, 71, 87, 0.1); }
+        .logical-error { border-left-color: #ffa502; background: rgba(255, 165, 2, 0.1); }
+        .runtime-error { border-left-color: #ff3838; background: rgba(255, 56, 56, 0.1); }
+        .practice-error { border-left-color: #70a1ff; background: rgba(112, 161, 255, 0.1); }
+        
+        .line-number {
+            color: #666;
+            margin-right: 10px;
+            font-size: 12px;
+        }
+        .error-icon {
+            margin-right: 8px;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+        .error-highlight {
+            background: rgba(255, 107, 107, 0.3);
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+        .musical-note {
+            background: rgba(0, 255, 255, 0.2);
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 11px;
+            margin-left: 10px;
+        }
+        .error-comment {
+            color: #888;
+            font-style: italic;
+            margin-left: 15px;
+        }
+        
+        .visualization-demo {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 15px 0;
+        }
+        .node-demo {
+            background: #222;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            border: 2px solid #333;
+        }
+        .node-shape {
+            width: 40px;
+            height: 40px;
+            margin: 0 auto 10px;
+            background: linear-gradient(45deg, var(--color1), var(--color2));
+            border-radius: var(--shape);
+            box-shadow: 0 0 20px var(--glow);
+            animation: rotate 3s linear infinite;
+        }
+        @keyframes rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        
+        .syntax-node { --color1: #ff4757; --color2: #ff3838; --shape: 50% 0; --glow: #ff4757; }
+        .logical-node { --color1: #ffa502; --color2: #ff7675; --shape: 0; --glow: #ffa502; }
+        .runtime-node { --color1: #ff3838; --color2: #e84393; --shape: 20%; --glow: #ff3838; }
+        .practice-node { --color1: #70a1ff; --color2: #5352ed; --shape: 50%; --glow: #70a1ff; }
+        
+        .instructions {
+            background: rgba(0, 255, 255, 0.1);
+            border: 1px solid #00ffff;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .step {
+            margin: 10px 0;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .step:last-child {
+            border-bottom: none;
+        }
+        .step-number {
+            background: #00ffff;
+            color: #000;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+        
+        .feature-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        .feature-item {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #00ffff;
+        }
+        .feature-item h4 {
+            color: #00ffff;
+            margin: 0 0 8px 0;
+        }
+        .feature-item p {
+            margin: 0;
+            color: #ccc;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎵 Swar Enhanced Error Visualization 🎵</h1>
+        <p class="subtitle">Advanced Code Error Detection with Musical Sonification & 3D Visualization</p>
+        
+        <div class="demo-grid">
+            <div class="demo-section">
+                <h3 class="feature-title">
+                    <span class="feature-icon">🔴</span>
+                    Syntax Errors
+                </h3>
+                <p>Critical parsing issues that prevent code execution</p>
+                <div class="code-sample syntax-error">
+<span class="line-number">2</span><span class="error-icon">🔴</span><span class="error-highlight">let x = 5</span> <span class="musical-note">♪ C2</span>
+<span class="error-comment">// Missing semicolon - Syntax Error</span>
+
+<span class="line-number">5</span><span class="error-icon">🔴</span><span class="error-highlight">for (let i = 0; i < 10 {</span> <span class="musical-note">♪ C2</span>
+<span class="error-comment">// Unclosed parenthesis - Syntax Error</span>
+                </div>
+                <div class="node-demo">
+                    <div class="node-shape syntax-node"></div>
+                    <strong>Sharp Cone</strong><br>
+                    <small>Bright Red • Sawtooth Sound</small>
+                </div>
+            </div>
+            
+            <div class="demo-section">
+                <h3 class="feature-title">
+                    <span class="feature-icon">🟡</span>
+                    Logical Errors
+                </h3>
+                <p>Code that runs but has logical problems</p>
+                <div class="code-sample logical-error">
+<span class="line-number">6</span><span class="error-icon">🟡</span><span class="error-highlight">if (x = y) {</span> <span class="musical-note">♪ E3</span>
+<span class="error-comment">// Assignment in condition - Logical Error</span>
+
+<span class="line-number">11</span><span class="error-icon">🟡</span><span class="error-highlight">while (true) {</span> <span class="musical-note">♪ E3</span>
+<span class="error-comment">// Infinite loop - Logical Error</span>
+                </div>
+                <div class="node-demo">
+                    <div class="node-shape logical-node"></div>
+                    <strong>Octahedron</strong><br>
+                    <small>Orange • Square Wave</small>
+                </div>
+            </div>
+            
+            <div class="demo-section">
+                <h3 class="feature-title">
+                    <span class="feature-icon">🔥</span>
+                    Runtime Errors
+                </h3>
+                <p>Issues that cause crashes during execution</p>
+                <div class="code-sample runtime-error">
+<span class="line-number">3</span><span class="error-icon">🔥</span><span class="error-highlight">let result = x / 0;</span> <span class="musical-note">♪ D2</span>
+<span class="error-comment">// Division by zero - Runtime Error</span>
+
+<span class="line-number">7</span><span class="error-icon">🔥</span><span class="error-highlight">obj.method();</span> <span class="musical-note">♪ D2</span>
+<span class="error-comment">// Null reference - Runtime Error</span>
+                </div>
+                <div class="node-demo">
+                    <div class="node-shape runtime-node"></div>
+                    <strong>Tetrahedron</strong><br>
+                    <small>Dark Red • Triangle Wave</small>
+                </div>
+            </div>
+            
+            <div class="demo-section">
+                <h3 class="feature-title">
+                    <span class="feature-icon">🔵</span>
+                    Best Practices
+                </h3>
+                <p>Style and convention improvements</p>
+                <div class="code-sample practice-error">
+<span class="line-number">2</span><span class="error-icon">🔵</span><span class="error-highlight">var y = 10;</span> <span class="musical-note">♪ A4</span>
+<span class="error-comment">// Use let/const instead - Best Practice</span>
+
+<span class="line-number">4</span><span class="error-icon">🔵</span><span class="error-highlight">console.log("Debug");</span> <span class="musical-note">♪ A4</span>
+<span class="error-comment">// Remove debug statement - Best Practice</span>
+                </div>
+                <div class="node-demo">
+                    <div class="node-shape practice-node"></div>
+                    <strong>Dodecahedron</strong><br>
+                    <small>Blue • Sine Wave</small>
+                </div>
+            </div>
+        </div>
+        
+        <div class="demo-section full-width">
+            <h3 class="feature-title">
+                <span class="feature-icon">✨</span>
+                Enhanced Visual Features
+            </h3>
+            <div class="feature-list">
+                <div class="feature-item">
+                    <h4>🎯 Line-by-Line Highlighting</h4>
+                    <p>Each error line gets distinct colored borders and background highlighting based on error type and severity.</p>
+                </div>
+                <div class="feature-item">
+                    <h4>📊 Error Summary Panel</h4>
+                    <p>Comprehensive list of all detected issues with line numbers, types, and detailed messages.</p>
+                </div>
+                <div class="feature-item">
+                    <h4>🔄 Animated Error Icons</h4>
+                    <p>Pulsing icons next to error lines that indicate the specific type of issue found.</p>
+                </div>
+                <div class="feature-item">
+                    <h4>🎵 Distinct Musical Mapping</h4>
+                    <p>Each error type triggers different musical notes and synthesizer timbres for audio feedback.</p>
+                </div>
+                <div class="feature-item">
+                    <h4>🎮 3D Shape Differentiation</h4>
+                    <p>Unique 3D geometries for each error type with pulsing animations and wireframe overlays.</p>
+                </div>
+                <div class="feature-item">
+                    <h4>📈 Real-time Error Counter</h4>
+                    <p>Live overlay showing total errors found and breakdown by category during visualization.</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="instructions full-width">
+            <h3 class="feature-title">
+                <span class="feature-icon">🚀</span>
+                How to Experience Enhanced Error Visualization
+            </h3>
+            <div class="step">
+                <span class="step-number">1</span>
+                Start both servers: Backend (<code>uvicorn main:app --reload</code>) and Frontend (<code>npm run dev</code>)
+            </div>
+            <div class="step">
+                <span class="step-number">2</span>
+                Use the pre-loaded buggy JavaScript code or paste your own error-filled code
+            </div>
+            <div class="step">
+                <span class="step-number">3</span>
+                Press "Play" and watch the enhanced visualization unfold:
+                <ul style="margin: 10px 0; padding-left: 40px;">
+                    <li>🔴 <strong>Syntax errors</strong> appear as sharp red cones with harsh sawtooth sounds</li>
+                    <li>🟡 <strong>Logical errors</strong> appear as orange octahedrons with square wave tones</li>
+                    <li>🔥 <strong>Runtime errors</strong> appear as dark red tetrahedrons with triangle waves</li>
+                    <li>🔵 <strong>Best practices</strong> appear as blue dodecahedrons with gentle sine waves</li>
+                </ul>
+            </div>
+            <div class="step">
+                <span class="step-number">4</span>
+                Observe the synchronized highlighting: error lines pulse with distinct colors as their corresponding 3D shapes appear
+            </div>
+            <div class="step">
+                <span class="step-number">5</span>
+                Check the error summary panel for a complete breakdown of all detected issues
+            </div>
+            <div class="step">
+                <span class="step-number">6</span>
+                Notice the error counter overlay in the 3D visualization showing real-time issue statistics
+            </div>
+        </div>
+        
+        <div class="demo-section full-width">
+            <h3 class="feature-title">
+                <span class="feature-icon">🎯</span>
+                Sample Buggy Code for Testing
+            </h3>
+            <div class="code-sample">
+function buggyExample() {
+    let x = 5  <span class="error-highlight">// Missing semicolon - Syntax Error 🔴</span>
+    var y = 10; <span class="error-highlight">// Use let instead - Best Practice 🔵</span>
+    console.log("Debug statement"); <span class="error-highlight">// Debug - Best Practice 🔵</span>
+    
+    for (let i = 0; i < 10 { <span class="error-highlight">// Missing parenthesis - Syntax Error 🔴</span>
+        if (x = y) { <span class="error-highlight">// Assignment in condition - Logical Error 🟡</span>
+            return undefined; <span class="error-highlight">// Explicit undefined - Best Practice 🔵</span>
+        }
+        x = x + 1  <span class="error-highlight">// Missing semicolon - Syntax Error 🔴</span>
+    }
+    
+    while (true) { <span class="error-highlight">// Infinite loop - Logical Error 🟡</span>
+        break;
+    }
+    
+    if (x == null) { <span class="error-highlight">// Use === instead - Best Practice 🔵</span>
+        alert("Found issue"); <span class="error-highlight">// Alert statement - Best Practice 🔵</span>
+    }
+}
+            </div>
+            <p style="text-align: center; margin-top: 20px; color: #888;">
+                <em>Copy this code into Swar to see all error types in action!</em>
+            </p>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Swar Error Detection Demo</title>
+    <style>
+        body {
+            font-family: 'Courier New', monospace;
+            background: #1a1a1a;
+            color: #00ff00;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        h1 {
+            text-align: center;
+            color: #00ffff;
+            text-shadow: 0 0 10px #00ffff;
+        }
+        .demo-section {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #333;
+            border-radius: 8px;
+            background: #222;
+        }
+        .code-sample {
+            background: #111;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+            overflow-x: auto;
+        }
+        .error-type {
+            color: #ff6b6b;
+            font-weight: bold;
+        }
+        .warning-type {
+            color: #feca57;
+            font-weight: bold;
+        }
+        .info-type {
+            color: #48dbfb;
+            font-weight: bold;
+        }
+        .line-number {
+            color: #666;
+            margin-right: 10px;
+        }
+        .error-highlight {
+            background: rgba(255, 107, 107, 0.2);
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+        .musical-note {
+            background: rgba(0, 255, 255, 0.2);
+            padding: 2px 4px;
+            border-radius: 3px;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎵 Swar: Code Error Detection & Sonification Demo 🎵</h1>
+        
+        <div class="demo-section">
+            <h2>How Error Detection Works in Swar</h2>
+            <p>Swar analyzes your code and detects various types of issues, then converts them into musical notes and visual elements:</p>
+            <ul>
+                <li><span class="error-type">Syntax Errors</span> → Low-pitched notes (C2) with harsh timbres</li>
+                <li><span class="warning-type">Logical Errors</span> → Mid-pitched notes (E3) with distinctive tones</li>
+                <li><span class="info-type">Best Practices</span> → High-pitched notes (A4) with gentle timbres</li>
+            </ul>
+        </div>
+
+        <div class="demo-section">
+            <h3>🔴 Example: JavaScript with Syntax Errors</h3>
+            <div class="code-sample">
+<span class="line-number">1</span>function buggyFunction() {
+<span class="line-number">2</span>    <span class="error-highlight">let x = 5</span> <span class="musical-note">♪ C2</span> // Missing semicolon
+<span class="line-number">3</span>    let y = 10;
+<span class="line-number">4</span>    
+<span class="line-number">5</span>    <span class="error-highlight">for (let i = 0; i < 10 {</span> <span class="musical-note">♪ C2</span> // Unclosed parenthesis
+<span class="line-number">6</span>        console.log("Debug");
+<span class="line-number">7</span>        <span class="error-highlight">x = x + 1</span> <span class="musical-note">♪ C2</span> // Missing semicolon
+<span class="line-number">8</span>    }
+<span class="line-number">9</span>}
+            </div>
+            <p><strong>Detected Issues:</strong></p>
+            <ul>
+                <li><span class="error-type">Line 2:</span> Missing semicolon after variable declaration</li>
+                <li><span class="error-type">Line 5:</span> Unclosed parenthesis in for loop</li>
+                <li><span class="error-type">Line 7:</span> Missing semicolon after assignment</li>
+            </ul>
+        </div>
+
+        <div class="demo-section">
+            <h3>🟡 Example: JavaScript with Logical Errors</h3>
+            <div class="code-sample">
+<span class="line-number">1</span>function problematicCode() {
+<span class="line-number">2</span>    <span class="error-highlight">while (true) {</span> <span class="musical-note">♪ E3</span> // Infinite loop
+<span class="line-number">3</span>        break;
+<span class="line-number">4</span>    }
+<span class="line-number">5</span>    
+<span class="line-number">6</span>    <span class="error-highlight">if (x = 5) {</span> <span class="musical-note">♪ E3</span> // Assignment in condition
+<span class="line-number">7</span>        return something;
+<span class="line-number">8</span>    }
+<span class="line-number">9</span>    
+<span class="line-number">10</span>   <span class="error-highlight">if (x === x) {</span> <span class="musical-note">♪ E3</span> // Self-comparison
+<span class="line-number">11</span>       console.log("Always true");
+<span class="line-number">12</span>   }
+<span class="line-number">13</span>}
+            </div>
+            <p><strong>Detected Issues:</strong></p>
+            <ul>
+                <li><span class="warning-type">Line 2:</span> Potential infinite loop detected</li>
+                <li><span class="warning-type">Line 6:</span> Assignment in condition (use == for comparison)</li>
+                <li><span class="warning-type">Line 10:</span> Self-comparison detected</li>
+            </ul>
+        </div>
+
+        <div class="demo-section">
+            <h3>🔵 Example: JavaScript with Best Practice Issues</h3>
+            <div class="code-sample">
+<span class="line-number">1</span>function oldStyleCode() {
+<span class="line-number">2</span>    <span class="error-highlight">var oldVariable = "outdated";</span> <span class="musical-note">♪ A4</span> // Use let/const
+<span class="line-number">3</span>    <span class="error-highlight">console.log("Debug info");</span> <span class="musical-note">♪ A4</span> // Debug statement
+<span class="line-number">4</span>    
+<span class="line-number">5</span>    <span class="error-highlight">if (x == null)</span> <span class="musical-note">♪ A4</span> // Use strict equality
+<span class="line-number">6</span>        return true;
+<span class="line-number">7</span>    
+<span class="line-number">8</span>    <span class="error-highlight">let arr = new Array();</span> <span class="musical-note">♪ A4</span> // Use [] instead
+<span class="line-number">9</span>}
+            </div>
+            <p><strong>Detected Issues:</strong></p>
+            <ul>
+                <li><span class="info-type">Line 2:</span> Use let or const instead of var</li>
+                <li><span class="info-type">Line 3:</span> Remove debug console statement</li>
+                <li><span class="info-type">Line 5:</span> Use strict equality (===) instead of ==</li>
+                <li><span class="info-type">Line 8:</span> Use [] instead of new Array()</li>
+            </ul>
+        </div>
+
+        <div class="demo-section">
+            <h3>🎵 Musical Visualization Features</h3>
+            <p>When errors are detected, Swar creates:</p>
+            <ul>
+                <li><strong>Visual Nodes:</strong> Special red octahedron shapes in the 3D space</li>
+                <li><strong>Sound Effects:</strong> Distinct musical notes based on error severity</li>
+                <li><strong>Code Highlighting:</strong> Lines with errors are highlighted during playback</li>
+                <li><strong>Error Messages:</strong> Displayed as comments next to the problematic code</li>
+                <li><strong>Musical Timing:</strong> Errors interrupt the normal code flow with distinct sounds</li>
+            </ul>
+        </div>
+
+        <div class="demo-section">
+            <h3>🚀 How to Use</h3>
+            <ol>
+                <li>Start the backend server: <code>uvicorn main:app --reload</code></li>
+                <li>Start the frontend server: <code>npm run dev</code></li>
+                <li>Paste code with errors into the editor</li>
+                <li>Press the "Play" button</li>
+                <li>Watch and listen as errors are visualized with music and graphics!</li>
+            </ol>
+        </div>
+
+        <div class="demo-section">
+            <h3>🎯 Try These Error Patterns</h3>
+            <p>Copy and paste these examples into Swar to see error detection in action:</p>
+            
+            <h4>JavaScript Example with Multiple Errors:</h4>
+            <div class="code-sample">
+function testErrors() {
+    let x = 5  // Missing semicolon
+    var y = 10; // Use let instead of var
+    
+    for (let i = 0; i < 10 { // Missing closing parenthesis
+        console.log("Debug statement"); // Debug statement
+        x = x + 1  // Missing semicolon
+    }
+    
+    if (x = y) { // Assignment in condition
+        return undefined; // Explicit undefined return
+    }
+    
+    while (true) { // Infinite loop
+        break;
+    }
+}
+            </div>
+            
+            <h4>Python Example with Errors:</h4>
+            <div class="code-sample">
+def test_function()  # Missing colon
+    x = 5
+    if x == 5  # Missing colon
+        print("Debug statement")  # Debug statement
+        return x
+    
+    # Missing indentation below
+def broken_function(
+    # Missing closing parenthesis and body
+            </div>
+        </div>
+    </div>
+</body>
+</html>

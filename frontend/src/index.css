@@ -347,3 +347,34 @@ button:disabled {
     transform: scale(1) rotate(0deg);
   }
 }
+/* --- Code Viewer & Pointer Styles (from Anirban) --- */
+.code-container {
+  flex-grow: 1;
+  background-color: #161616;
+  text-align: left;
+  padding: 1rem;
+  font-family: 'Fira Code', 'Courier New', monospace;
+  font-size: 0.9em;
+  overflow-y: auto;
+  border-radius: 8px;
+  margin: 0;
+  white-space: pre; /* Use pre for proper formatting */
+}
+
+.code-line {
+  display: flex;
+  transition: background-color 0.2s ease-in-out;
+}
+
+.line-number {
+  min-width: 2.5em; /* ensures alignment */
+  padding-right: 1em;
+  color: #555;
+  text-align: right;
+  user-select: none; /* prevent selecting line numbers */
+}
+
+.highlighted-line {
+  background-color: rgba(94, 103, 255, 0.25);
+  border-radius: 2px;
+}
