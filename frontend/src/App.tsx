@@ -370,7 +370,7 @@ export default function App() {
                     ) : (
                         <CodeEditor code={code} setCode={handleCodeChange} disabled={isPlaying} persistentErrors={persistentErrors} />
                     )}
-                    <button onClick={handlePlay} disabled={!code.trim()}>{isPlaying ? 'Stop' : 'Play'}</button>
+                    <button onClick={handlePlay} disabled={!code.trim()}>{isPlaying ? 'Play' : 'Scan'}</button>
                 </div>
                 <div className="visualizer-container">
                     <Canvas camera={{ position: [0, 0, 15], fov: 75 }}>
