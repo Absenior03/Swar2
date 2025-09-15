@@ -1,104 +1,76 @@
-import asyncio
+import uvicorn
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import joblib
-from tree_sitter import Language, Parser
-import os
+from code_analyzer import analyze_code_with_tree_sitter, CodeAnalyzer
 
-# --- Tree-sitter Language Setup ---
-LANG_LIB_PATH = os.path.join(os.path.dirname(__file__), 'build', 'languages.so')
-GO_LANGUAGE = Language(LANG_LIB_PATH, 'go')
-JS_LANGUAGE = Language(LANG_LIB_PATH, 'javascript')
-
-# --- FastAPI App Initialization ---
+# Initialize the FastAPI application
 app = FastAPI()
+
+# Configure CORS (Cross-Origin Resource Sharing)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"],
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
-# --- Model Loading ---
+# Load the pre-trained machine learning model for genre classification
 model_pipeline = joblib.load('model.joblib')
+# Instantiate your regex-based code analyzer
+regex_analyzer = CodeAnalyzer()
 
-# --- Pydantic Models ---
-class Code(BaseModel):
+class CodeInput(BaseModel):
     code: str
 
-# --- Helper Functions ---
-def get_parser(code: str) -> Parser | None:
-    parser = Parser()
-    # Simple language detection based on keywords
-    if 'func main' in code or 'package main' in code or 'fmt.' in code:
-        parser.set_language(GO_LANGUAGE)
-    else:
-        # Default to JavaScript
-        parser.set_language(JS_LANGUAGE)
-    return parser
-
-async def walk_tree(cursor, websocket: WebSocket):
-    """
-    Recursively walks the syntax tree and sends node info.
-    **MODIFIED to NOT halt on error.**
-    """
-    nodes_to_visit = [(cursor.node, 0)]
-    max_depth = 100 
-    
-    while nodes_to_visit:
-        node, depth = nodes_to_visit.pop(0)
-
-        if depth > max_depth:
-            continue
-            
-        node_type = "syntax_error" if node.type == 'ERROR' or node.is_missing else node.type
-
-        await websocket.send_json({
-            "type": node_type,
-            "startLine": node.start_point[0] + 1,
-            "endLine": node.end_point[0] + 1
-        })
-        
-        # **LOGIC CHANGE**: We no longer stop the traversal when an error is found.
-        # This allows the frontend to receive all nodes, both valid and invalid.
-
-        for child in reversed(node.children):
-            nodes_to_visit.insert(0, (child, depth + 1))
-        
-        await asyncio.sleep(0.005)
-
-# --- API Endpoints ---
 @app.post("/classify")
-async def classify_code(code: Code):
-    prediction = model_pipeline.predict([code.code])
-    probabilities = model_pipeline.predict_proba([code.code])
-    confidence = probabilities.max()
-    return {"genre": prediction[0], "confidence": confidence}
+def classify(code_input: CodeInput):
+    """
+    HTTP endpoint to classify code genre using the pre-trained model.
+    """
+    prediction = model_pipeline.predict([code_input.code])
+    return {"genre": prediction[0]}
 
 @app.websocket("/ws/visualizer")
-async def websocket_visualizer(websocket: WebSocket):
+async def websocket_endpoint(websocket: WebSocket):
+    """
+    WebSocket endpoint for real-time code analysis.
+    This now runs both tree-sitter and the regex analyzer in parallel.
+    """
     await websocket.accept()
-    print("INFO:     connection open")
     try:
-        data = await websocket.receive_json()
-        code_text = data.get('code', '')
-        
-        parser = get_parser(code_text)
-        if not parser:
-            await websocket.send_json({"error": "Language not supported"})
-            return
+        while True:
+            data = await websocket.receive_json()
+            code = data['code']
             
-        tree = parser.parse(bytes(code_text, "utf8"))
-        cursor = tree.walk()
-        await walk_tree(cursor, websocket)
+            # Simple language detection (can be improved)
+            language = 'javascript' if 'function' in code or 'const' in code or 'let' in code else 'go'
+
+            # --- PARALLEL ANALYSIS ---
+            # 1. Get structural and syntax errors from tree-sitter
+            tree_sitter_results = list(analyze_code_with_tree_sitter(code, language))
+            
+            # 2. Get logical and best-practice errors from your regex analyzer
+            regex_results = regex_analyzer.analyze_code(code, language)
+
+            # 3. Combine and sort all results by line number
+            all_results = sorted(tree_sitter_results + regex_results, key=lambda x: x['startLine'])
+            
+            # 4. Stream the unified results to the frontend
+            for result in all_results:
+                 await websocket.send_json(result)
+
+            # Once done, break the loop to close the connection gracefully
+            break
 
     except WebSocketDisconnect:
-        print("INFO:     connection closed")
+        print("Client disconnected")
     except Exception as e:
         print(f"An error occurred: {e}")
     finally:
-        if websocket.client_state.name != 'DISCONNECTED':
-            await websocket.close()
-        print("INFO:     connection closed")
+        print("Connection closed")
 
 
 if __name__ == "__main__":

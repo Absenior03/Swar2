@@ -26,27 +26,20 @@ const musicPalettes: { [key: string]: { scale: string[]; synth: any; } } = {
     'default':       { scale: ['C4', 'D4', 'E4', 'F4', 'G4', 'A4', 'B4', 'C5'], synth: Tone.PolySynth }
 };
 
-// --- 3D Components ---
+// --- Interfaces ---
 interface NodeVisualProps { 
-    id: string; 
-    type: string; 
-    position: [number, number, number]; 
-    duration: number;
+    id: string; type: string; position: [number, number, number]; duration: number; isError: boolean;
 }
-
 interface MusicalEvent {
-    note: string | string[];
-    duration: string;
-    type: string;
-    startLine: number;
-    endLine: number;
-    isError?: boolean;
-    message?: string;
+    note: string | string[]; duration: string; type: string; startLine: number; endLine: number; isError: boolean; message: string;
+}
+interface HighlightInfo {
+    start: number; end: number; type: string; isError: boolean;
 }
 
-const NodeVisual: React.FC<NodeVisualProps & { isError?: boolean; message?: string }> = ({ id, type, position, duration, isError, message }) => {
+// --- 3D Components ---
+const NodeVisual: React.FC<NodeVisualProps> = ({ id, type, position, duration, isError }) => {
     const meshRef = useRef<THREE.Mesh>(null!);
-    const textRef = useRef<THREE.Mesh>(null!);
     const initialLifetime = useRef(duration * (isError ? 3 : 1.5) + 0.5);
 
     useEffect(() => {
@@ -63,44 +56,23 @@ const NodeVisual: React.FC<NodeVisualProps & { isError?: boolean; message?: stri
         const opacity = THREE.MathUtils.lerp(0, 1, lifetime / initialLifetime.current);
         (meshRef.current.material as THREE.MeshStandardMaterial).opacity = opacity;
         if (lifetime <= 0) meshRef.current.visible = false;
-        
-        // Rotate error nodes for emphasis
         if (isError && meshRef.current.visible) {
             meshRef.current.rotation.y += delta * 2;
             meshRef.current.rotation.x += delta;
         }
     });
-
+    
     const getErrorGeometry = (errorType: string) => {
         switch(errorType) {
-            case 'syntax_error':
-                return <octahedronGeometry args={[0.8, 0]} />;
-            case 'logical_error':
-                return <dodecahedronGeometry args={[0.8, 0]} />;
-            case 'best_practice':
-                return <tetrahedronGeometry args={[0.8, 0]} />;
-            default:
-                return <octahedronGeometry args={[0.8, 0]} />;
+            case 'syntax_error': return <octahedronGeometry args={[0.8, 0]} />;
+            case 'logical_error': return <dodecahedronGeometry args={[0.8, 0]} />;
+            case 'best_practice': return <tetrahedronGeometry args={[0.8, 0]} />;
+            default: return <octahedronGeometry args={[0.8, 0]} />;
         }
     };
+    const geometry = isError ? getErrorGeometry(type) : type.includes('function') ? <sphereGeometry args={[0.6, 32, 32]} /> : type.includes('for') ? <torusGeometry args={[0.5, 0.15, 16, 100]} /> : type.includes('if') ? <boxGeometry args={[0.8, 0.8, 0.8]} /> : <icosahedronGeometry args={[0.5, 0]} />;
+    const color = isError ? (type === 'syntax_error' ? '#ff0000' : type === 'logical_error' ? '#ff8c00' : type === 'best_practice' ? '#ffd700' : '#ff0000') : (type.includes('function') ? '#ff69b4' : type.includes('for') ? '#00ffff' : type.includes('if') ? '#ffff00' : '#9932cc');
 
-    const geometry = isError ? 
-        getErrorGeometry(type) : 
-        type.includes('function') ? <sphereGeometry args={[0.6, 32, 32]} /> : 
-        type.includes('for') ? <torusGeometry args={[0.5, 0.15, 16, 100]} /> : 
-        type.includes('if') ? <boxGeometry args={[0.8, 0.8, 0.8]} /> : 
-        <icosahedronGeometry args={[0.5, 0]} />;
-
-    const color = isError ? 
-        type === 'syntax_error' ? '#ff0000' : 
-        type === 'logical_error' ? '#ff8c00' : 
-        type === 'best_practice' ? '#ffd700' : '#ff0000' :
-        type.includes('function') ? '#ff69b4' : 
-        type.includes('for') ? '#00ffff' : 
-        type.includes('if') ? '#ffff00' : '#9932cc';
-
-    // **CRITICAL FIX**: The <primitive> tag was causing the renderer to crash.
-    // This now correctly renders the geometry and material as children of the mesh.
     return (
         <mesh ref={meshRef} position={position}>
             {geometry}
@@ -122,92 +94,128 @@ const CameraAnimator = ({ effect, setEffect }: { effect: number; setEffect: (e: 
     return null;
 };
 
-// --- Code Viewer with Pointer ---
-const CodeViewer = ({ code, highlightedLines }: { 
-    code: string; 
-    highlightedLines: { start: number; end: number; isError?: boolean; message?: string; } | null 
-}) => {
+// --- UI Components ---
+const CodeEditor = ({ code, setCode, disabled, persistentErrors }: { code: string; setCode: (code: string) => void; disabled: boolean; persistentErrors: Map<number, string> }) => {
+    const lineNumbers = code.split('\n').length;
+    const lineCounterRef = useRef<HTMLDivElement>(null);
+    const textAreaRef = useRef<HTMLTextAreaElement>(null);
+
+    const handleScroll = () => {
+        if (lineCounterRef.current && textAreaRef.current) {
+            lineCounterRef.current.scrollTop = textAreaRef.current.scrollTop;
+        }
+    };
+    
+    const handleCodeChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+        setCode(e.target.value);
+    };
+
     return (
-        <pre className="code-container">
-            {code.split('\n').map((line, index) => {
-                const isHighlighted = highlightedLines && (index + 1 >= highlightedLines.start && index + 1 <= highlightedLines.end);
-                const isError = highlightedLines?.isError && isHighlighted;
-                return (
-                    <div 
-                        key={index} 
-                        className={`code-line ${isHighlighted ? 'highlighted-line' : ''} ${isError ? 'error-line' : ''}`}
-                        title={isError && highlightedLines?.message ? highlightedLines.message : undefined}
-                    >
-                        <span className="line-number">{index + 1}</span>
-                        <span>{line}</span>
-                        {isError && highlightedLines?.message && (
-                            <span className="error-message">{highlightedLines.message}</span>
-                        )}
-                    </div>
-                );
-            })}
-        </pre>
+        <div className="code-editor-wrapper">
+            <div className="line-numbers" ref={lineCounterRef}>
+                {Array.from({ length: lineNumbers }, (_, i) => {
+                    const lineNum = i + 1;
+                    const errorType = persistentErrors.get(lineNum);
+                    const lineClass = errorType ? `error-line-${errorType}` : '';
+                    return <div key={i} className={lineClass}>{lineNum}</div>
+                })}
+            </div>
+            <textarea
+                ref={textAreaRef}
+                className="code-container"
+                value={code}
+                onChange={handleCodeChange}
+                onScroll={handleScroll}
+                disabled={disabled}
+                spellCheck="false"
+            />
+        </div>
+    );
+};
+
+const CodeViewer = ({ code, highlightedLines }: { code: string; highlightedLines: HighlightInfo | null }) => {
+    return (
+        <div className="code-editor-wrapper view-mode">
+            <div className="code-container">
+                {code.split('\n').map((line, index) => {
+                    const lineNum = index + 1;
+                    const isHighlighted = highlightedLines && (lineNum >= highlightedLines.start && lineNum <= highlightedLines.end);
+                    const lineClass = isHighlighted ? (highlightedLines.isError ? `error-line-${highlightedLines.type}` : 'highlighted-line') : '';
+                    
+                    return (
+                        <div key={index} className={`code-line ${lineClass}`}>
+                            <span className="line-number">{lineNum}</span>
+                            <span className="line-content">{line || ' '}</span>
+                        </div>
+                    );
+                })}
+            </div>
+        </div>
+    );
+};
+
+const SummaryModal = ({ summary, onClose }: { summary: { title: string, messages: string[] } | null, onClose: () => void }) => {
+    if (!summary) return null;
+    return (
+        <div className="modal-backdrop" onClick={onClose}>
+            <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+                <h2>{summary.title}</h2>
+                {summary.messages.length > 0 ? (
+                    <ul>
+                        {summary.messages.map((msg, index) => <li key={index}>{msg}</li>)}
+                    </ul>
+                ) : <p>No issues found. The code is clean!</p>}
+                <button onClick={onClose} className="modal-close-button">Close</button>
+            </div>
+        </div>
     );
 };
 
 // --- Main App Component ---
 export default function App() {
-    const [code, setCode] = useState("function factorial(n) {\n  if (n === 0) {\n    return 1;\n  } else {\n    let result = 1;\n    for (let i = 1; i <= n; i++) {\n      result *= i;\n    }\n    return result;\n  }\n}");
+    const [code, setCode] = useState("function factorial(n) {\n  if (n === 0) {\n    return 1;\n  } else {\n    let result = 1;\n    // A syntax error for demonstration\n    for (let i = 1; i <= n; i++ {\n      result *= i;\n    }\n    return result;\n  }\n}");
     const [isPlaying, setIsPlaying] = useState(false);
     const [status, setStatus] = useState('Ready. Paste your code and press Play.');
     const [visualNodes, setVisualNodes] = useState<NodeVisualProps[]>([]);
     const [cameraEffect, setCameraEffect] = useState(0);
     const [activePalette, setActivePalette] = useState('default');
-    const [highlightedLines, setHighlightedLines] = useState<{ 
-        start: number; 
-        end: number; 
-        isError?: boolean; 
-        message?: string; 
-    } | null>(null);
+    const [highlightedLines, setHighlightedLines] = useState<HighlightInfo | null>(null);
+    const [summary, setSummary] = useState<{ title: string, messages: string[] } | null>(null);
+    const [persistentErrors, setPersistentErrors] = useState<Map<number, string>>(new Map());
     
     const ws = useRef<WebSocket | null>(null);
     const synth = useRef<any>(null);
     const sequence = useRef<Tone.Sequence | null>(null);
-
-    const playTimeoutRef = useRef<number | null>(null);
+    const stopTimeoutRef = useRef<number | null>(null);
     
-    const stopMusic = useCallback(() => {
-        // Clear any pending timeouts
-        if (playTimeoutRef.current) {
-            clearTimeout(playTimeoutRef.current);
-            playTimeoutRef.current = null;
-        }
-
-        // Stop and cleanup Tone.js
+    const stopMusic = useCallback((finalSummary?: { title: string, messages: string[] }) => {
+        if (stopTimeoutRef.current) clearTimeout(stopTimeoutRef.current);
+        
         Tone.Transport.stop();
         Tone.Transport.cancel();
         
-        // Stop and dispose of sequence
-        if (sequence.current) {
-            sequence.current.stop();
-            sequence.current.dispose();
-            sequence.current = null;
-        }
+        if (sequence.current) sequence.current.dispose();
         
-        // Release all notes and dispose of synth properly
-        if (synth.current) {
-            synth.current.releaseAll();
-            synth.current.dispose();
-            synth.current = null;
-        }
-        
-        // Close WebSocket connection
-        if (ws.current && ws.current.readyState === WebSocket.OPEN) {
-            ws.current.close();
-            ws.current = null;
-        }
+        if (ws.current && ws.current.readyState === WebSocket.OPEN) ws.current.close();
 
         setIsPlaying(false);
-        setHighlightedLines(null);
-        setStatus('Ready to play again.');
-        setVisualNodes([]); // Clear visualizations
-        setCameraEffect(0); // Reset camera
+        // **PERSISTENCE FIX**: Do not clear highlights on stop.
+        if (finalSummary) {
+            setSummary(finalSummary);
+            setStatus(finalSummary.title);
+        } else {
+            setStatus('Ready to play again.');
+        }
     }, []);
+    
+    const handleCodeChange = (newCode: string) => {
+        setCode(newCode);
+        // Clear errors when the user starts typing again
+        if (persistentErrors.size > 0) {
+            setPersistentErrors(new Map());
+            setHighlightedLines(null);
+        }
+    };
 
     const handlePlay = useCallback(async (): Promise<void> => {
         if (isPlaying) {
@@ -220,6 +228,9 @@ export default function App() {
         try {
             setIsPlaying(true);
             setVisualNodes([]);
+            setHighlightedLines(null);
+            setSummary(null);
+            setPersistentErrors(new Map());
             setStatus('1/3: Classifying code...');
             
             const classification = await classifyCode(code);
@@ -228,240 +239,151 @@ export default function App() {
             const palette = musicPalettes[paletteKey];
             
             if (synth.current) synth.current.dispose();
-            // Initialize synth based on the palette
-            synth.current = new palette.synth({
-                volume: -6,
-                envelope: {
-                    attack: 0.01,
-                    decay: 0.1,
-                    sustain: 0.3,
-                    release: 0.5
-                }
-            }).toDestination();
+            synth.current = new palette.synth({ volume: -9, oscillator: { type: 'sine8' } }).toDestination();
             
             setStatus('2/3: Analyzing code structure...');
             const musicalEvents: MusicalEvent[] = [];
-            let messageCounter = 0;
+            const errorMessages: string[] = [];
+            const collectedErrors = new Map<number, string>();
 
             ws.current = new WebSocket('ws://127.0.0.1:8000/ws/visualizer');
             ws.current.onopen = () => ws.current?.send(JSON.stringify({ code }));
 
             ws.current.onmessage = (event) => {
                 const data = JSON.parse(event.data);
-                const currentScale = palette.scale;
-                
-                // Skip if not a valid syntax node
-                // Handle error events from the backend
+                musicalEvents.push(data);
                 if (data.isError) {
-                    console.log('Received error event:', data);
-                    const errorEvent = {
-                        note: data.note || 'C2', // Fallback to C2 if no note specified
-                        duration: data.duration || '8n',
-                        type: data.type,
-                        startLine: data.line,
-                        endLine: data.line,
-                        isError: true,
-                        message: data.message
-                    };
-                    console.log('Created error event:', errorEvent);
-                    musicalEvents.push(errorEvent);
-                    
-                    // Immediately show the error in the UI
-                    setHighlightedLines({
-                        start: data.line,
-                        end: data.line,
-                        isError: true,
-                        message: data.message
-                    });
-                    setStatus(`Error detected: ${data.message}`);
-                    return;
+                    errorMessages.push(`Line ${data.startLine}: [${data.type}] ${data.message}`);
+                    collectedErrors.set(data.startLine, data.type);
                 }
-
-                if (!data.type || !data.startLine || !data.endLine) return;
-                
-                let note: string | string[];
-                let duration: string;
-                const noteIndex = Math.abs(data.startLine + messageCounter);
-
-                switch (data.type) {
-                    case 'function_declaration': case 'arrow_function':
-                        note = [currentScale[noteIndex % currentScale.length], currentScale[(noteIndex + 3) % currentScale.length]];
-                        duration = '4n'; break;
-                    case 'for_statement': case 'while_statement':
-                        note = currentScale[noteIndex % currentScale.length];
-                        duration = '8n'; break;
-                    case 'if_statement':
-                        note = currentScale[noteIndex % currentScale.length];
-                        duration = '8n'; break;
-                    default:
-                        if (data.type.length < 5 || data.type.includes("comment")) return;
-                        note = currentScale[noteIndex % currentScale.length];
-                        duration = '16n'; break;
-                }
-                
-                messageCounter++;
-                musicalEvents.push({ 
-                    note, 
-                    duration, 
-                    type: data.type,
-                    startLine: data.startLine,
-                    endLine: data.endLine
-                });
             };
-            if (ws.current) ws.current.onclose = () => {
+
+            ws.current.onerror = (error) => {
+                console.error('WebSocket error:', error);
+                stopMusic({ title: "Connection Error", messages: ["Failed to connect to the visualizer service."] });
+            };
+
+            ws.current.onclose = () => {
                 if (musicalEvents.length === 0) {
-                    setStatus('No parsable musical elements found.');
-                    setIsPlaying(false);
+                    stopMusic({ title: "Analysis Complete", messages: ["No parsable musical elements were found in the code."] });
                     return;
                 }
                 
                 setStatus('3/3: Composing and playing music...');
-
-                // Reset transport
-                Tone.Transport.stop();
-                Tone.Transport.cancel();
                 
-                // Create a sequence with proper timing
-                sequence.current = new Tone.Sequence(
-                    (time, event) => {
-                        if (!event || !synth.current) return;
-                        
-                        if (event.isError) {
-                            // Temporarily reduce main synth volume
-                            const originalVolume = synth.current.volume.value;
-                            synth.current.volume.value = -25;  // Significantly reduce main sound
-                            
-                            // Create a prominent error sound
-                            const errorSynth = new Tone.PolySynth(Tone.Synth, {
-                                volume: 0,  // Full volume for error sound
-                                envelope: {
-                                    attack: 0.01,
-                                    decay: 0.3,
-                                    sustain: 0.6,
-                                    release: 0.5
-                                }
-                            }).toDestination();
-                            
-                            // Add distortion for more prominence
-                            const distortion = new Tone.Distortion(0.5).toDestination();
-                            errorSynth.connect(distortion);
-                            
-                            // Play both normal and error sounds
-                            synth.current.triggerAttackRelease(event.note, event.duration, time);
-                            
-                            // Play error sound (higher octave for emphasis)
-                            const errorNote = Array.isArray(event.note) ? event.note[0] : event.note;
-                            const baseFreq = Tone.Frequency(errorNote).toFrequency();
-                            errorSynth.triggerAttackRelease(
-                                [baseFreq * 2, baseFreq * 3], // Octave up + fifth
-                                "8n",
-                                time
-                            );
-                            
-                            // Schedule cleanup and volume restoration
-                            Tone.Transport.schedule(() => {
-                                synth.current.volume.value = originalVolume;
-                                errorSynth.dispose();
-                                distortion.dispose();
-                            }, `+${time + 0.5}`);
-                        } else {
-                            // Play regular sound at normal volume
-                            synth.current.triggerAttackRelease(event.note, event.duration, time);
+                const scheduledEvents: (MusicalEvent & { time: number })[] = [];
+                let cumulativeTime = 0;
+                let messageCounter = 0;
+
+                musicalEvents.forEach(event => {
+                    const currentScale = palette.scale;
+                    let note: string | string[];
+                    let duration: string;
+
+                    if (event.isError) {
+                        switch(event.type) {
+                            case 'syntax_error': note = ['C2', 'C#2']; duration = '8n'; break;
+                            case 'logical_error': note = ['E2', 'F2']; duration = '16n'; break;
+                            case 'best_practice': note = ['G2', 'G#2']; duration = '16n'; break;
+                            default: note = 'C2'; duration = '16n'; break;
                         }
+                    } else {
+                         const noteIndex = Math.abs(event.startLine + messageCounter);
+                         switch (event.type) {
+                            case 'function_declaration': case 'arrow_function':
+                                note = [currentScale[noteIndex % currentScale.length], currentScale[(noteIndex + 3) % currentScale.length]];
+                                duration = '4n'; break;
+                            default:
+                                note = currentScale[noteIndex % currentScale.length];
+                                duration = '16n'; break;
+                        }
+                    }
+                    
+                    const newScheduledEvent: MusicalEvent & { time: number } = {
+                        time: cumulativeTime,
+                        note: note,
+                        duration: duration,
+                        type: event.type,
+                        startLine: event.startLine,
+                        endLine: event.endLine,
+                        isError: event.isError,
+                        message: event.message,
+                    };
+                    scheduledEvents.push(newScheduledEvent);
+                    cumulativeTime += Tone.Time(duration).toSeconds();
+                    if (!event.isError) messageCounter++;
+                });
+
+                sequence.current = new Tone.Sequence((time, event) => {
+                    synth.current?.triggerAttackRelease(event.note, event.duration, time);
                         
-                        // Schedule visual updates
-                        Tone.Draw.schedule(() => {
-                            if (event.startLine && event.endLine) {
-                                setHighlightedLines({ start: event.startLine, end: event.endLine });
-                                
-                                // If it's an error, show the message in the status
-                                if (event.isError && event.message) {
-                                    setStatus(`Error at line ${event.startLine}: ${event.message}`);
-                                }
-                            }
-                            setCameraEffect(event.isError ? 2.0 : 1.0);
-                            
-                            const newNode: NodeVisualProps & { isError?: boolean; message?: string } = {
-                                id: `${time}-${Math.random()}`,
-                                type: event.type,
-                                position: [(Math.random() - 0.5) * 10, (Math.random() - 0.5) * 10, (Math.random() - 0.5) * 10],
-                                duration: Tone.Time(event.duration).toSeconds(),
-                                isError: event.isError,
-                                message: event.message
-                            };
-                            setVisualNodes(prev => [...prev.slice(-30), newNode]);
-                        }, time);
-                    },
-                    musicalEvents,
-                    '8n'
-                ).start(0);
+                    Tone.Draw.schedule(() => {
+                        setHighlightedLines({ start: event.startLine, end: event.endLine, type: event.type, isError: event.isError });
+                        setCameraEffect(event.isError ? 2.5 : 1.0);
+                        const newNode: NodeVisualProps = {
+                            id: `${time}-${Math.random()}`,
+                            type: event.type,
+                            position: [(Math.random() - 0.5) * 10, (Math.random() - 0.5) * 10, (Math.random() - 0.5) * 10],
+                            duration: Tone.Time(event.duration).toSeconds(),
+                            isError: event.isError
+                        };
+                        setVisualNodes(prev => [...prev.slice(-30), newNode]);
+                    }, time);
+                }, scheduledEvents).start(0);
 
-                // Don't loop
                 sequence.current.loop = false;
-                
-                // Start transport and schedule stop
                 Tone.Transport.start();
-                const totalDuration = musicalEvents.length * Tone.Time('8n').toSeconds();
-                Tone.Transport.schedule(() => {
-                    stopMusic();
-                }, `+${totalDuration + 1}`);
 
-                // Transport control handled by direct note triggering
+                const finalSummary = {
+                    title: errorMessages.length > 0 ? "Analysis Complete: Issues Found" : "Analysis Complete: Code is Clean!",
+                    messages: errorMessages
+                };
+                
+                // Set persistent errors right before stopping
+                const finalStop = () => {
+                    setPersistentErrors(collectedErrors);
+                    stopMusic(finalSummary);
+                }
+                stopTimeoutRef.current = window.setTimeout(finalStop, (cumulativeTime + 2) * 1000);
             };
 
-            if (ws.current) ws.current.onerror = (error) => {
-                console.error('WebSocket error:', error);
-                setStatus('Error connecting to visualizer.');
-                stopMusic();
-            };
         } catch (error) {
             console.error('Failed to start visualization:', error);
-            setStatus('Error connecting to backend.');
-            stopMusic();
+            stopMusic({ title: "Connection Error", messages: ["Could not connect to the backend service."] });
         }
     }, [code, isPlaying, stopMusic]);
 
     useEffect(() => {
         return () => { 
            stopMusic();
-           ws.current?.close();
+           if(ws.current) ws.current.close();
         }
     }, [stopMusic]);
 
     return (
         <div className="App">
-            <header><h1>Swarr</h1><p>Real-Time Code Sonification & Visualization</p></header>
+            <header><h1>Project Swar</h1><p>Real-Time Code Sonification & Visualization</p></header>
             <main>
                 <div className="editor-container">
                     {isPlaying ? (
                         <CodeViewer code={code} highlightedLines={highlightedLines} />
                     ) : (
-                        <textarea
-                            className="code-container"
-                            value={code}
-                            onChange={(e) => setCode(e.target.value)}
-                            disabled={isPlaying}
-                        />
+                        <CodeEditor code={code} setCode={handleCodeChange} disabled={isPlaying} persistentErrors={persistentErrors} />
                     )}
-                    <button onClick={handlePlay} disabled={!code.trim()}>
-                        {isPlaying ? 'Stop' : 'Play'}
-                    </button>
+                    <button onClick={handlePlay} disabled={!code.trim()}>{isPlaying ? 'Stop' : 'Play'}</button>
                 </div>
                 <div className="visualizer-container">
                     <Canvas camera={{ position: [0, 0, 15], fov: 75 }}>
                         <ambientLight intensity={0.2} /><pointLight position={[10, 10, 10]} intensity={1.5} />
                         <Stars radius={100} depth={50} count={5000} factor={4} saturation={0} fade speed={1} />
                         {visualNodes.map(node => <NodeVisual key={node.id} {...node} />)}
-                        {!isPlaying && (
-                            <Text position={[0, 0, 0]} fontSize={0.8} color="#555" anchorX="center" anchorY="middle" outlineColor="#000" outlineWidth={0.05}>
-                                Press Play to Visualize
-                            </Text>
-                        )}
+                        {!isPlaying && (<Text position={[0, 0, 0]} fontSize={0.8} color="#555" anchorX="center" anchorY="middle" outlineColor="#000" outlineWidth={0.05}>Press Play to Visualize</Text>)}
                         <CameraAnimator effect={cameraEffect} setEffect={setCameraEffect} />
                     </Canvas>
                 </div>
             </main>
             <footer>Status: {status} | Musical Palette: {activePalette}</footer>
+            <SummaryModal summary={summary} onClose={() => setSummary(null)} />
         </div>
     );
 }
