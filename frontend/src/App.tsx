@@ -362,7 +362,7 @@ export default function App() {
 
     return (
         <div className="App">
-            <header><h1>Project Swar</h1><p>Real-Time Code Sonification & Visualization</p></header>
+            <header><h1>Swarr</h1><p>Real-Time Code Sonification & Visualization</p></header>
             <main>
                 <div className="editor-container">
                     {isPlaying ? (
